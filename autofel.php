@@ -8,7 +8,7 @@
 
 /*
     Plugin Name: AutoFEL
-    Description: Plugin para la integración de FEL con WooCommerce.
+    Description: Plugin para la integración de FEL (Facturación electrónica) con Wordpress + WooCommerce.
     Author: eDesigns
     Version: 1.0
     Author URI: https://edesigns.com/
@@ -17,6 +17,9 @@
     if (!defined('ABSPATH')) {
         exit;
     }
+
+    require_once plugin_dir_path(__FILE__) . 'certificadores/default-autofel.class.php';
+    require_once plugin_dir_path(__FILE__) . 'certificadores/digifact.class.php';
 
     class AutoFEL {
 
@@ -27,7 +30,7 @@
         }
 
         public function auto_fel_menu() {
-            add_menu_page('AutoFEL', 'AutoFEL', 'manage_options', 'auto-fel', array($this, 'auto_fel_history_page'), 'dashicons-admin-generic', 99);
+            add_menu_page('AutoFEL', 'AutoFEL', 'manage_options', 'auto-fel', array($this, 'auto_fel_history_page'), 'dashicons-media-document', 99);
             add_submenu_page('auto-fel', 'Historial', 'Historial', 'manage_options', 'auto-fel', array($this, 'auto_fel_history_page'));
             add_submenu_page('auto-fel', 'Configuración', 'Configuración', 'manage_options', 'auto-fel-settings', array($this, 'auto_fel_settings_page'));
         }
@@ -68,13 +71,18 @@
             $order = wc_get_order($order_id);
             $order_data = $order->get_data();
 
-            $xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?></FacturaElectronica>');
+            $certificador = get_option('auto-fel-settings-certificador');
 
-            $order_data['xml'] = $xml;
-            $order_data['pdf'] = "";
-            $order_data['html'] =  "";
-
-            return $order_data;
+            switch ($certificador) {
+                case '1':
+                    new Certificadores\AutoFEL($order_data);
+                    break;
+                case '2':
+                    new Certificadores\DigiFact($order_data);
+                    break;
+                default:
+                    break;
+            }
         }
 
         /* 
@@ -126,7 +134,7 @@
             register_setting('auto-fel-settings', 'auto-fel-settings-certificador', [
                 'type' => 'string',
                 'sanitize_callback' => 'sanitize_text_field',
-                'default' => ''
+                'default' => 'default'
             ]);
             
             // Section Certificador Fields
@@ -148,7 +156,7 @@
             register_setting('auto-fel-settings', 'auto-fel-settings-regimen', [
                 'type' => 'string',
                 'sanitize_callback' => 'sanitize_text_field',
-                'default' => ''
+                'default' => 'general'
             ]);
             
             // Section Contribuyente Fields
@@ -169,7 +177,7 @@
             register_setting('auto-fel-settings', 'auto-fel-settings-testmode', [
                 'type' => 'boolean',
                 'sanitize_callback' => 'sanitize_text_field',
-                'default' => ''
+                'default' => false
             ]);
             
             // Section Sistema Fields
@@ -198,8 +206,8 @@
         public function auto_fel_settings_certificador_callback($args) {
             $option = get_option($args['label_for']);
             $html = '<select id="' . $args['label_for'] . '" name="' . $args['label_for'] . '">';
-                $html .= '<option value="1" ' . selected(1, $option, false) . '>Sin certificador (AutoFEL)</option>';
-                $html .= '<option value="2" ' . selected(2, $option, false) . '>DigiFact</option>';
+                $html .= '<option value="default" ' . selected("default", $option, false) . '>Sin certificador (AutoFEL)</option>';
+                $html .= '<option value="digifact" ' . selected("digifact", $option, false) . '>DigiFact</option>';
             $html .= '</select>';
             echo $html;
         }
@@ -211,14 +219,14 @@
         public function auto_fel_settings_regimen_callback($args) {
             $option = get_option($args['label_for']);
             $html = '<select id="' . $args['label_for'] . '" name="' . $args['label_for'] . '">';
-                $html .= '<option value="1" ' . selected(1, $option, false) . '>General</option>';
-                $html .= '<option value="2" ' . selected(2, $option, false) . '>Pequeño Contribuyente</option>';
+                $html .= '<option value="general" ' . selected("general", $option, false) . '>General</option>';
+                $html .= '<option value="fpq" ' . selected("fpq", $option, false) . '>Pequeño Contribuyente</option>';
             $html .= '</select>';
             echo $html;
         }
         public function auto_fel_settings_testmode_callback($args) {
             $option = get_option($args['label_for']);
-            $html = '<input type="checkbox" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="1" ' . checked(1, $option, false) . '>';
+            $html = '<input type="checkbox" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="1" ' . checked(true, $option, false) . '>';
             echo $html;
         }
 
@@ -227,6 +235,10 @@
             ?>
             <div class="wrap">
                 <h1>Configuración AutoFEL</h1>
+                <p>
+                    AutoFEL te permite emitir facturas electrónicas de manera automática al momento que una orden de compra es completada.
+                </p>
+                <br>
                 <form method="post" action="options.php">
                     <?php
                         settings_fields('auto-fel-settings');
@@ -243,15 +255,6 @@
             ?>
             <div class="wrap">
                 <h1>Historial</h1>
-            </div>
-            <?php
-        }
-
-        // Error logs
-        public function auto_fel_logs_page() {
-            ?>
-            <div class="wrap">
-                <h1>Logs</h1>
             </div>
             <?php
         }
