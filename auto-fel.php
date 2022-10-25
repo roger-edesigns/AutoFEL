@@ -121,35 +121,77 @@
 
             // Section Certificador
             add_settings_section('auto-fel-settings-section-certificador', 'Certificador de Documentos', array($this, 'auto_fel_settings_section_certficador_callback'), 'auto-fel-settings');
+            
             // Section Certificador Settings
-            register_setting('auto-fel-settings', 'auto-fel-settings-certificador');
+            register_setting('auto-fel-settings', 'auto-fel-settings-certificador', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            
             // Section Certificador Fields
             add_settings_field('auto-fel-settings-certificador', 'Certificador', array($this, 'auto_fel_settings_certificador_callback'), 'auto-fel-settings', 'auto-fel-settings-section-certificador', [
                 'label_for' => 'auto-fel-settings-certificador',
                 'class' => 'auto-fel-settings-class',
-                'type' => 'select',
             ]);
 
+
             // Section Contribuyente
-            add_settings_section('auto-fel-settings-section', 'Contribuyente', array($this, 'auto_fel_settings_section_contribuyente_callback'), 'auto-fel-settings');
+            add_settings_section('auto-fel-settings-section-contribuyente', 'Contribuyente', array($this, 'auto_fel_settings_section_contribuyente_callback'), 'auto-fel-settings');
+
             // Section Contribuyente Settings
-            register_setting('auto-fel-settings', 'auto-fel-settings-nit');
+            register_setting('auto-fel-settings', 'auto-fel-settings-nit', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-regimen', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            
             // Section Contribuyente Fields
-            add_settings_field('auto-fel-settings-nit', 'NIT', array($this, 'auto_fel_settings_nit_callback'), 'auto-fel-settings', 'auto-fel-settings-section', [
+            add_settings_field('auto-fel-settings-nit', 'NIT Emisor', array($this, 'auto_fel_settings_nit_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
                 'label_for' => 'auto-fel-settings-nit',
                 'class' => 'auto-fel-settings-class',
-                'type' => 'text',
             ]);
+            add_settings_field('auto-fel-settings-regimen', 'Régimen', array($this, 'auto_fel_settings_regimen_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-regimen',
+                'class' => 'auto-fel-settings-class',
+            ]);
+
+
+            // Section Sistema
+            add_settings_section('auto-fel-settings-section-sistema', 'Sistema', array($this, 'auto_fel_settings_section_sistema_callback'), 'auto-fel-settings');
+
+            // Section Sistema Settings
+            register_setting('auto-fel-settings', 'auto-fel-settings-testmode', [
+                'type' => 'boolean',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            
+            // Section Sistema Fields
+            add_settings_field('auto-fel-settings-testmode', 'Modo de prueba', array($this, 'auto_fel_settings_testmode_callback'), 'auto-fel-settings', 'auto-fel-settings-section-sistema', [
+                'label_for' => 'auto-fel-settings-testmode',
+                'class' => 'auto-fel-settings-class',
+            ]);
+
 
         }
 
         // Section Certificador Description
         public function auto_fel_settings_section_certficador_callback() {
-            echo '<p>Configuración del certificador aque emitirá el documento.</p>';
+            echo '<p>Configuración del certificador que emitirá el documento.</p>';
         }
         // Section Contribuyente Description
         public function auto_fel_settings_section_contribuyente_callback() {
             echo '<p>Configuración del contribuyente.</p>';
+        }
+        // Section Sistema Description
+        public function auto_fel_settings_section_sistema_callback() {
+            echo '<p>Configuración del sistema.</p>';
         }
 
         // Field Callbacks
@@ -164,6 +206,19 @@
         public function auto_fel_settings_nit_callback($args) {
             $option = get_option($args['label_for']);
             $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_regimen_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<select id="' . $args['label_for'] . '" name="' . $args['label_for'] . '">';
+                $html .= '<option value="1" ' . selected(1, $option, false) . '>General</option>';
+                $html .= '<option value="2" ' . selected(2, $option, false) . '>Pequeño Contribuyente</option>';
+            $html .= '</select>';
+            echo $html;
+        }
+        public function auto_fel_settings_testmode_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="checkbox" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="1" ' . checked(1, $option, false) . '>';
             echo $html;
         }
 
