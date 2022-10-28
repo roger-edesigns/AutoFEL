@@ -27,6 +27,8 @@
             add_action('woocommerce_order_status_changed', array($this, 'auto_fel_order_status_changed'), 10, 3);
             add_action('admin_menu', array($this, 'auto_fel_menu'));
             add_action('admin_init', array($this, 'auto_fel_settings'));
+            add_filter( 'woocommerce_checkout_fields' , array($this, 'custom_override_checkout_fields'));
+            add_action( 'woocommerce_admin_order_data_after_shipping_address', array($this, 'custom_checkout_field_display_admin_order_meta'), 10, 1);
         }
 
         public function auto_fel_menu() {
@@ -68,21 +70,21 @@
          * @return void
          */
         public function auto_fel_generate_invoice($order_id) {
-            $order = wc_get_order($order_id);
-            $order_data = $order->get_data();
 
             $certificador = get_option('auto-fel-settings-certificador');
 
             switch ($certificador) {
-                case '1':
-                    new Certificadores\AutoFEL($order_data);
+                case 'default':
+                    $fel = new Certificadores\AutoFEL($order_id);
                     break;
-                case '2':
-                    new Certificadores\DigiFact($order_data);
+                case 'digifact':
+                    $fel = new Certificadores\DigiFact($order_id);
                     break;
                 default:
                     break;
             }
+
+            return $fel;
         }
 
         /* 
@@ -94,22 +96,7 @@
         public function auto_fel_send_invoice($order_id) {
 
             $fel = $this->auto_fel_generate_invoice($order_id);
-
-            $r = wp_remote_post("", array(
-                'method' => 'POST',
-                'httpversion' => '2.0',
-                'headers' => array(
-                    'Authorization' => 'Bearer ',
-                    'Content-Type' => 'application/json'
-                ),
-                'body' => json_encode(
-                    [
-                        'xml' => $fel['xml']->asXML(),
-                        'pdf' => $fel['pdf'],
-                        'html' => $fel['html']
-                    ]
-                )
-            ));
+            $fel->send();
 
         }
         
@@ -123,6 +110,24 @@
             $order = wc_get_order($order_id);
             $order_data = $order->get_data();
             
+            
+        }
+
+        public function custom_override_checkout_fields($fields) {
+            $fields['billing']['billing_nit'] = array(
+                'label'     => __('NIT', 'woocommerce'),
+                'placeholder'   => _x('NIT', 'NIT para facturar', 'woocommerce'),
+                'required'  => true,
+                'class'     => array('form-row-wide'),
+                'clear'     => true,
+                'default'   => 'CF'
+            );
+
+            return $fields;
+        }
+
+        public function custom_checkout_field_display_admin_order_meta($order){
+            echo '<p><strong>'.__('NIT').':</strong> ' . get_post_meta( $order->get_id(), '_billing_nit', true ) . '</p>';
         }
 
         public function auto_fel_settings() {
@@ -136,13 +141,33 @@
                 'sanitize_callback' => 'sanitize_text_field',
                 'default' => 'default'
             ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-certificador-user', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-certificador-password', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+
             
             // Section Certificador Fields
             add_settings_field('auto-fel-settings-certificador', 'Certificador', array($this, 'auto_fel_settings_certificador_callback'), 'auto-fel-settings', 'auto-fel-settings-section-certificador', [
                 'label_for' => 'auto-fel-settings-certificador',
                 'class' => 'auto-fel-settings-class',
             ]);
+            add_settings_field('auto-fel-settings-certificador-user', 'Usuario', array($this, 'auto_fel_settings_user_callback'), 'auto-fel-settings', 'auto-fel-settings-section-certificador', [
+                'label_for' => 'auto-fel-settings-certificador-user',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-certificador-password', 'Contraseña', array($this, 'auto_fel_settings_pass_callback'), 'auto-fel-settings', 'auto-fel-settings-section-certificador', [
+                'label_for' => 'auto-fel-settings-certificador-password',
+                'class' => 'auto-fel-settings-class',
+            ]);
 
+            
 
             // Section Contribuyente
             add_settings_section('auto-fel-settings-section-contribuyente', 'Contribuyente', array($this, 'auto_fel_settings_section_contribuyente_callback'), 'auto-fel-settings');
@@ -158,7 +183,43 @@
                 'sanitize_callback' => 'sanitize_text_field',
                 'default' => 'general'
             ]);
-            
+            register_setting('auto-fel-settings', 'auto-fel-settings-nombre-comercial', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-direccion', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-nombre-emisor', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-codigo-postal', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-municipio', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-departamento', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-codigo-pais', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => 'GT'
+            ]);
+
+
             // Section Contribuyente Fields
             add_settings_field('auto-fel-settings-nit', 'NIT Emisor', array($this, 'auto_fel_settings_nit_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
                 'label_for' => 'auto-fel-settings-nit',
@@ -168,6 +229,35 @@
                 'label_for' => 'auto-fel-settings-regimen',
                 'class' => 'auto-fel-settings-class',
             ]);
+            add_settings_field('auto-fel-settings-nombre-emisor', 'Nombre emisor', array($this, 'auto_fel_settings_nombre_emisor_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-nombre-emisor',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-nombre-comercial', 'Nombre comercial', array($this, 'auto_fel_settings_nombre_comercial_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-nombre-comercial',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-direccion', 'Dirección', array($this, 'auto_fel_settings_direccion_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-direccion',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-codigo-postal', 'Código postal', array($this, 'auto_fel_settings_codigo_postal_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-codigo-postal',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-municipio', 'Municipio', array($this, 'auto_fel_settings_municipio_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-municipio',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-departamento', 'Departamento', array($this, 'auto_fel_settings_departamento_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-departamento',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-codigo-pais', 'Código país', array($this, 'auto_fel_settings_codigo_pais_callback'), 'auto-fel-settings', 'auto-fel-settings-section-contribuyente', [
+                'label_for' => 'auto-fel-settings-codigo-pais',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            
 
 
             // Section Sistema
@@ -185,7 +275,6 @@
                 'label_for' => 'auto-fel-settings-testmode',
                 'class' => 'auto-fel-settings-class',
             ]);
-
 
         }
 
@@ -227,6 +316,51 @@
         public function auto_fel_settings_testmode_callback($args) {
             $option = get_option($args['label_for']);
             $html = '<input type="checkbox" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="1" ' . checked(true, $option, false) . '>';
+            echo $html;
+        }
+        public function auto_fel_settings_nombre_comercial_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_direccion_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_nombre_emisor_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_user_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_pass_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="password" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_codigo_postal_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_municipio_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_departamento_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_codigo_pais_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
             echo $html;
         }
 
