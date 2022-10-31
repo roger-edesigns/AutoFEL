@@ -163,7 +163,7 @@ class DigiFact implements Certificador {
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->addAttribute('xsi:schemaLocation', 'https://www.digifact.com.gt/dtecomm', 'http://www.w3.org/2001/XMLSchema-instance');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->addChild('dtecomm:InformacionAdicional');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addAttribute('dtecomm:Version', '7.1234654163');
-        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id'] + 25);
+        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id'] + 28);
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:FECHA_REFERENCIA', $order->get_date_created()->date('Y-m-d\TH:i:s'));
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:VALIDAR_REFERENCIA_INTERNA', 'VALIDAR');
 
@@ -187,42 +187,14 @@ class DigiFact implements Certificador {
 
         $json = json_decode($result, true);
 
-        $email = new \WC_Email();
-
-        // XML
-        if(isset($json['ResponseDATA1'])) {
-            $attachments = array(
-                'dte.pdf' => $json['ResponseDATA1']
-            );
-
-            global $phpmailer;
-         
-            add_action( 'phpmailer_init', function(&$phpmailer) use ($attachments) {
-                global $json;
-                $phpmailer->SMTPKeepAlive = true;
-                $phpmailer->AddStringAttachment($json["ResponseDATA1"], "Hola.pdf", 'base64', 'application/pdf');
-            });
-
-            $email->send($order->get_billing_email(), 'Factura 1', $json["ResponseDATA1"], "", $attachments);
-            wp_mail($order->get_billing_email(), 'Factura 1', $json["ResponseDATA1"], "", $attachments);
-        }
-
-        // HTML
-        if(isset($json['ResponseDATA2'])) {
-            $attachments = array(
-                'dte.pdf' => $json['ResponseDATA2']
-            );
-            $email->send($order->get_billing_email(), 'Factura 2', $json["ResponseDATA2"], "", $attachments);
-            wp_mail($order->get_billing_email(), 'Factura 2', $json["ResponseDATA2"], "", $attachments);
-        }
+        add_action( 'phpmailer_init', function(&$phpmailer) use ($json) {
+            $phpmailer->SMTPKeepAlive = true;
+            $phpmailer->AddStringAttachment(base64_decode($json["ResponseDATA3"]), "Hola.pdf", 'base64', 'application/pdf');
+        });
 
         // PDF
         if(isset($json['ResponseDATA3'])) {
-            $attachments = array(
-                'dte.pdf' => $json['ResponseDATA3']
-            );
-            $email->send($order->get_billing_email(), 'Factura 3', $json["ResponseDATA3"], "", $attachments);
-            wp_mail($order->get_billing_email(), 'Factura 3', $json["ResponseDATA3"], "", $attachments);
+            wp_mail($order->get_billing_email(), 'Factura', "Esta es la factura.");
         }
 
     }
