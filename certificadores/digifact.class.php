@@ -183,9 +183,9 @@ class DigiFact implements Certificador {
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->addAttribute('xsi:schemaLocation', 'https://www.digifact.com.gt/dtecomm', 'http://www.w3.org/2001/XMLSchema-instance');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->addChild('dtecomm:InformacionAdicional');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addAttribute('dtecomm:Version', '7.1234654163');
-        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id'] + 5);
+        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id']);
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:FECHA_REFERENCIA', $order->get_date_created()->date('Y-m-d\TH:i:s'));
-        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:VALIDAR_REFERENCIA_INTERNA', 'VALIDAR');
+        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:VALIDAR_REFERENCIA_INTERNA', 'NO_VALIDAR');
 
         $r = $xml->asXML();
         
@@ -237,7 +237,7 @@ class DigiFact implements Certificador {
                 </p>
             HTML;
 
-            wp_mail($order->get_billing_email(), "DTE: {$email_nombre_comercial} - {$nombre_comercial}", $html, array('Content-Type: text/html; charset=UTF-8'));
+            wp_mail($order->get_billing_email(), "DTE: #{$email_order_id} - {$nombre_comercial}", $html, array('Content-Type: text/html; charset=UTF-8'));
         }
 
         if($debug) {
