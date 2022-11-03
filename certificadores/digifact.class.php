@@ -29,8 +29,7 @@ class DigiFact implements Certificador {
         
         $data["nit"] = $order->get_meta("_billing_nit");
 
-        if(!$data["nit"] || $data["nit"] == "CF" || $data["nit"] == "C/F" || $data["nit"] == "c/f" || $data["nit"] == "cf") {
-            $data["cliente"] = "CONSUMIDOR FINAL";
+        if(!$data["nit"] || $data["nit"] == "CF" || $data["nit"] == "C/F" || $data["nit"] == "c/f" || $data["nit"] == "cf" || $data["nit"] == "c f" || $data["nit"] == "C F") {
             $data["nit"] = "CF";
         }
 
@@ -41,37 +40,39 @@ class DigiFact implements Certificador {
         $nombre_comercial = get_option('auto-fel-settings-nombre-comercial');
         $regimen = get_option('auto-fel-settings-regimen');
         $direccion = get_option('auto-fel-settings-direccion');
-        $test_mode = get_option('auto-fel-settings-testmode');
         $codigo_postal = get_option('auto-fel-settings-codigo-postal');
         $municipio = get_option('auto-fel-settings-municipio');
         $departamento = get_option('auto-fel-settings-departamento');
         $codigo_pais = get_option('auto-fel-settings-codigo-pais');
-
+        
         $cliente_address = $order->get_billing_address_1() . " " . $order->get_billing_address_2();
         $cliente_city = $order->get_billing_city();
         $cliente_state = WC()->countries->states[$order->get_billing_country()][$order->get_billing_state()];
-        $cliente_zip = $order->get_billing_postcode();
+        $cliente_zip = $order->get_billing_postcode() || "00000";
         $cliente_country = $order->get_billing_country();
-
+        
+        $test_mode = get_option('auto-fel-settings-testmode');
+        $debug = get_option('auto-fel-settings-debug');
+        
         if($regimen == 'general') {
             $regimen = "GEN";
+            $tipo_documento = "FACT";
         }
         else if($regimen == 'fpq') {
             $regimen = "PEQ";
+            $tipo_documento = "FPEQ";
         }
 
         // send authorization
         if($test_mode) {
-            $tipo_documento = "FPEQ";
             $url_api = "https://felgttestaws.digifact.com.gt";
         }
         else {
-            $tipo_documento = "FACT";
             $url_api = "https://felgtaws.digifact.com.gt";
         }
 
         $auth_data = array(
-            "username" => $username,
+            "username" => "{$codigo_pais}.000{$nit}.{$username}",
             "password" => $password
         );
 
@@ -96,8 +97,6 @@ class DigiFact implements Certificador {
 
         $token = $result->Token;
 
-        //echo "<pre>" . var_dump($data["items"]) . "</pre>";
-        
         // send invoice
         $xml = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><dte:GTDocumento xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dte="http://www.sat.gob.gt/dte/fel/0.2.0"/>');
         
@@ -129,7 +128,7 @@ class DigiFact implements Certificador {
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->addAttribute('IDReceptor', $data['nit']);
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->addChild('dte:DireccionReceptor');
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->children('dte', true)->DireccionReceptor->addChild('dte:Direccion', $cliente_address);
-        $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->children('dte', true)->DireccionReceptor->addChild('dte:CodigoPostal', '00000');
+        $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->children('dte', true)->DireccionReceptor->addChild('dte:CodigoPostal', $cliente_zip);
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->children('dte', true)->DireccionReceptor->addChild('dte:Municipio', $cliente_city);
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->children('dte', true)->DireccionReceptor->addChild('dte:Departamento', $cliente_state);
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Receptor->children('dte', true)->DireccionReceptor->addChild('dte:Pais', $cliente_country);
@@ -152,25 +151,46 @@ class DigiFact implements Certificador {
             $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->addChild('PrecioUnitario', $precio_unitario);
             $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->addChild('Precio', $item->get_subtotal());
             $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->addChild('Descuento', '0');
+
+            // Impuestos
+            if($regimen === "general") {
+                $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->addChild('Impuestos');
+                $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->children('dte', true)->Impuestos->addChild('Impuesto');
+                $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->children('dte', true)->Impuestos->children('dte', true)->Impuesto->addChild('NombreCorto', 'IVA');
+                $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->children('dte', true)->Impuestos->children('dte', true)->Impuesto->addChild('CodigoUnidadGravable', '1');
+                $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->children('dte', true)->Impuestos->children('dte', true)->Impuesto->addChild('MontoGravable', $item->get_subtotal());
+                $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->children('dte', true)->Impuestos->children('dte', true)->Impuesto->addChild('MontoImpuesto', $item->get_subtotal_tax());
+            }
+
             $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Items->children('dte', true)->Item[$i]->addChild('Total', $item->get_total());
             $i++;
         }
 
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->addChild('dte:Totales');
+        
+        // Impuestos
+        if($regimen === "general") {
+            $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Totales->addChild('dte:TotalImpuestos');
+            $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Totales->children('dte', true)->TotalImpuestos->addChild('dte:TotalImpuesto');
+            $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Totales->children('dte', true)->TotalImpuestos->children('dte', true)->TotalImpuesto->addAttribute('NombreCorto', 'IVA');
+            $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Totales->children('dte', true)->TotalImpuestos->children('dte', true)->TotalImpuesto->addAttribute('TotalMontoImpuesto', $order->get_total_tax());
+        }
+
         $xml->children('dte', true)->SAT->children('dte', true)->DTE->children('dte', true)->DatosEmision->children('dte', true)->Totales->addChild('dte:GranTotal', $data['total']);
+
         $xml->children('dte', true)->SAT->addChild('dte:Adenda');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->addChild('dtecomm:Informacion_COMERCIAL', '', 'https://www.digifact.com.gt/dtecomm');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->addAttribute('xsi:schemaLocation', 'https://www.digifact.com.gt/dtecomm', 'http://www.w3.org/2001/XMLSchema-instance');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->addChild('dtecomm:InformacionAdicional');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addAttribute('dtecomm:Version', '7.1234654163');
-        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id'] + 28);
+        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id'] + 5);
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:FECHA_REFERENCIA', $order->get_date_created()->date('Y-m-d\TH:i:s'));
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:VALIDAR_REFERENCIA_INTERNA', 'VALIDAR');
 
         $r = $xml->asXML();
         
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url_api . "/gt.com.fel.api.v3/api/FelRequestV2?NIT=000114548447&TIPO=CERTIFICATE_DTE_XML_TOSIGN&FORMAT=XML,PDF&USERNAME=TESTUSER");
+        curl_setopt($ch, CURLOPT_URL, $url_api . "/gt.com.fel.api.v3/api/FelRequestV2?NIT={$nit}&TIPO=CERTIFICATE_DTE_XML_TOSIGN&FORMAT=XML,PDF&USERNAME={$username}");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $r);
@@ -187,14 +207,49 @@ class DigiFact implements Certificador {
 
         $json = json_decode($result, true);
 
+
         add_action( 'phpmailer_init', function(&$phpmailer) use ($json) {
             $phpmailer->SMTPKeepAlive = true;
-            $phpmailer->AddStringAttachment(base64_decode($json["ResponseDATA3"]), "Hola.pdf", 'base64', 'application/pdf');
+            $phpmailer->AddStringAttachment(base64_decode($json["ResponseDATA3"]), "DTE.pdf", 'base64', 'application/pdf');
         });
 
         // PDF
         if(isset($json['ResponseDATA3'])) {
-            wp_mail($order->get_billing_email(), 'Factura', "Esta es la factura.");
+
+            $email_nit = $data["nit"];
+            $email_order_id = $data["id"];
+            $email_total = $data["total"];
+
+            $html = <<<HTML
+                <p>
+                    ¡Gracias por tu compra en JS.gt!<br>
+                    Adjunto encontrará documento tributario electrónico (DTE) correspondiente a su reciente compra.
+                </p>
+                <p>
+                    - Nit: {$email_nit}<br>
+                    - Orden: #{$email_order_id}<br>
+                    - Monto: Q{$email_total}
+                </p>
+                <p>
+                    Atentamente:<br>
+                    Equipo de JS.gt
+                </p>
+            HTML;
+
+            wp_mail($order->get_billing_email(), 'DTE JS.gt', $html, array('Content-Type: text/html; charset=UTF-8'));
+        }
+
+        if($debug) {
+            $dom = new \DOMDocument();
+            $dom->loadXML($r);
+            $dom->formatOutput = true;
+            
+            echo '<pre>';
+                print_r(htmlentities($dom->saveXML()));
+            echo '</pre>';
+
+            print_r($json);
+            exit;
         }
 
     }

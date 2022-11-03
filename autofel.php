@@ -269,10 +269,19 @@
                 'sanitize_callback' => 'sanitize_text_field',
                 'default' => false
             ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-debug', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => ''
+            ]);
             
             // Section Sistema Fields
             add_settings_field('auto-fel-settings-testmode', 'Modo de prueba', array($this, 'auto_fel_settings_testmode_callback'), 'auto-fel-settings', 'auto-fel-settings-section-sistema', [
                 'label_for' => 'auto-fel-settings-testmode',
+                'class' => 'auto-fel-settings-class',
+            ]);
+            add_settings_field('auto-fel-settings-debug', 'Debug', array($this, 'auto_fel_settings_debug_callback'), 'auto-fel-settings', 'auto-fel-settings-section-sistema', [
+                'label_for' => 'auto-fel-settings-debug',
                 'class' => 'auto-fel-settings-class',
             ]);
 
@@ -361,6 +370,11 @@
         public function auto_fel_settings_codigo_pais_callback($args) {
             $option = get_option($args['label_for']);
             $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
+            echo $html;
+        }
+        public function auto_fel_settings_debug_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="checkbox" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="1" ' . checked(true, $option, false) . '>';
             echo $html;
         }
 
