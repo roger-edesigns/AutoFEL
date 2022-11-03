@@ -219,6 +219,7 @@ class DigiFact implements Certificador {
             $email_nit = $data["nit"];
             $email_order_id = $data["id"];
             $email_total = $data["total"];
+            $email_nombre_comercial = $nombre_comercial;
 
             $html = <<<HTML
                 <p>
@@ -232,11 +233,11 @@ class DigiFact implements Certificador {
                 </p>
                 <p>
                     Atentamente:<br>
-                    Equipo de JS.gt
+                    Equipo de {$email_nombre_comercial}
                 </p>
             HTML;
 
-            wp_mail($order->get_billing_email(), 'DTE JS.gt', $html, array('Content-Type: text/html; charset=UTF-8'));
+            wp_mail($order->get_billing_email(), "DTE: {$email_nombre_comercial} - {$nombre_comercial}", $html, array('Content-Type: text/html; charset=UTF-8'));
         }
 
         if($debug) {
