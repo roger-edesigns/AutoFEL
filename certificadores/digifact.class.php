@@ -227,7 +227,7 @@ class DigiFact implements Certificador {
                     Adjunto encontrará documento tributario electrónico (DTE) correspondiente a su reciente compra.
                 </p>
                 <p>
-                    - Nit: {$email_nit}<br>
+                    - NIT: {$email_nit}<br>
                     - Orden: #{$email_order_id}<br>
                     - Monto: Q{$email_total}
                 </p>
