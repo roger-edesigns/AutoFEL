@@ -223,7 +223,7 @@ class DigiFact implements Certificador {
 
             $html = <<<HTML
                 <p>
-                    ¡Gracias por tu compra en JS.gt!<br>
+                    ¡Gracias por tu compra en {$email_nombre_comercial}!<br>
                     Adjunto encontrará documento tributario electrónico (DTE) correspondiente a su reciente compra.
                 </p>
                 <p>
