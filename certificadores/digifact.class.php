@@ -185,7 +185,7 @@ class DigiFact implements Certificador {
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addAttribute('dtecomm:Version', '7.1234654163');
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:REFERENCIA_INTERNA', $data['id']);
         $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:FECHA_REFERENCIA', $order->get_date_created()->date('Y-m-d\TH:i:s'));
-        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:VALIDAR_REFERENCIA_INTERNA', 'NO_VALIDAR');
+        $xml->children('dte', true)->SAT->children('dte', true)->Adenda->children('dtecomm', true)->Informacion_COMERCIAL->children('dtecomm', true)->InformacionAdicional->addChild('dtecomm:VALIDAR_REFERENCIA_INTERNA', 'VALIDAR');
 
         $r = $xml->asXML();
         
@@ -221,7 +221,9 @@ class DigiFact implements Certificador {
             $email_total = $data["total"];
             $email_nombre_comercial = $nombre_comercial;
 
-            $html = <<<HTML
+            $client_email = $order->get_billing_email();
+
+            $html_cliente = <<<HTML
                 <p>
                     ¡Gracias por tu compra en {$email_nombre_comercial}!<br>
                     Adjunto encontrará documento tributario electrónico (DTE) correspondiente a su reciente compra.
@@ -237,7 +239,22 @@ class DigiFact implements Certificador {
                 </p>
             HTML;
 
-            wp_mail($order->get_billing_email(), "DTE: #{$email_order_id} - {$nombre_comercial}", $html, array('Content-Type: text/html; charset=UTF-8'));
+            wp_mail($client_email, "DTE: #{$email_order_id} - {$nombre_comercial}", $html_cliente, array('Content-Type: text/html; charset=UTF-8'));
+
+            $email_admin = get_option('auto-fel-settings-admin_email');
+
+            $html_admin = <<<HTML
+                <p>
+                    Se ha generado un DTE para la orden #{$email_order_id} por un monto de Q{$email_total}.
+                </p>
+                <p>
+                    Atentamente:<br>
+                    Equipo de {$email_nombre_comercial}
+                </p>
+            HTML;
+
+            wp_mail($email_admin, "DTE: #{$email_order_id} - {$nombre_comercial}", $html_admin, array('Content-Type: text/html; charset=UTF-8'));
+
         }
 
         if($debug) {

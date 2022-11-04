@@ -274,8 +274,17 @@
                 'sanitize_callback' => 'sanitize_text_field',
                 'default' => ''
             ]);
+            register_setting('auto-fel-settings', 'auto-fel-settings-admin_email', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => get_bloginfo('admin_email')
+            ]);
             
             // Section Sistema Fields
+            add_settings_field('auto-fel-settings-admin_email', 'Correo electrónico para Contabilidad', array($this, 'auto_fel_settings_admin_email_callback'), 'auto-fel-settings', 'auto-fel-settings-section-sistema', [
+                'label_for' => 'auto-fel-settings-admin_email',
+                'class' => 'auto-fel-settings-class',
+            ]);
             add_settings_field('auto-fel-settings-testmode', 'Modo de prueba', array($this, 'auto_fel_settings_testmode_callback'), 'auto-fel-settings', 'auto-fel-settings-section-sistema', [
                 'label_for' => 'auto-fel-settings-testmode',
                 'class' => 'auto-fel-settings-class',
@@ -284,6 +293,7 @@
                 'label_for' => 'auto-fel-settings-debug',
                 'class' => 'auto-fel-settings-class',
             ]);
+
 
         }
 
@@ -375,6 +385,11 @@
         public function auto_fel_settings_debug_callback($args) {
             $option = get_option($args['label_for']);
             $html = '<input type="checkbox" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="1" ' . checked(true, $option, false) . '>';
+            echo $html;
+        }
+        public function auto_fel_settings_admin_email_callback($args) {
+            $option = get_option($args['label_for']);
+            $html = '<input type="text" id="' . $args['label_for'] . '" name="' . $args['label_for'] . '" value="' . $option . '">';
             echo $html;
         }
 
